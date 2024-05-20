@@ -14,10 +14,15 @@ class OANN():
 
     def transfer_function_ORR(self, k: float = None, gamma: float = None, neff: float = None,
                               phi: float = None, L: float = None):
-        c = tf.sqrt(1 - k)
-        beta = 2 * pi * neff / self.lam
-        x = tf.exp(-1j * beta * L)
-        return (c - gamma * x * tf.exp(-1j * phi)) / (1 - c * gamma * x * tf.exp(-1j * phi))
+
+        c = tf.cast(tf.sqrt(1 - k), tf.complex64)
+        beta = tf.cast(2 * pi * neff / self.lam, tf.complex64)
+        x = tf.cast(tf.exp(-1j * beta * L), tf.complex64)
+        k = tf.cast(k, tf.complex64)
+        gamma = tf.cast(k, tf.complex64)
+
+        phi_complex = tf.cast(tf.complex(phi, tf.zeros_like(phi)), tf.complex64)
+        return (c - gamma * x * tf.exp(-1j * phi_complex)) / (1 - c * gamma * x * tf.exp(-1j * phi_complex))
 
     def transfer_function_MZI(self, k1: float = None, k2: float = None, phi: tf.Tensor or list = None) -> tf.complex64:
         # Here is why k must < 1 and > 0
@@ -34,17 +39,41 @@ class OANN():
 
     def transfer_function_MZI_ORR(self, HR, k1: float = None, k2: float = None,
                                   phi: float = None):
-        c1 = tf.sqrt(1 - k1)
-        c2 = tf.sqrt(1 - k2)
-        s1 = tf.sqrt(k1)
-        s2 = tf.sqrt(k2)
+        # Here is why k must < 1 and > 0
+        # if tf.cond(k1 < 0) or k1 > 1 or k2 < 0 or k2 > 1:
+        #     raise ValueError("k must < 1 and > 0, k1 = %f, k2 = %f" % (k1, k2))
 
-        return -1j * (s2 * c1 * HR * tf.exp(-1j * phi) + c2 * s1)
+        def raise_error():
+            # This function can be used to assert the condition and print an error message
+            tf.print("k must < 1 and > 0, k1 =", k1, ", k2 =", k2)
+            # To stop execution, you could use an invalid operation
+            return tf.constant("k must < 1 and > 0")
+
+        # Define the main computation or error handling based on condition
+        result = tf.cond(
+            tf.reduce_all([k1 >= 0, k1 <= 1, k2 >= 0, k2 <= 1]),
+            lambda: tf.constant("k1 and k2 are in range"),
+            raise_error
+        )
+
+        # Run the TensorFlow computation
+        tf.print(result)
+
+        c1 = tf.cast(tf.sqrt(1 - k1), tf.complex64)
+        c2 = tf.cast(tf.sqrt(1 - k2), tf.complex64)
+        s1 = tf.cast(tf.sqrt(k1), tf.complex64)
+        s2 = tf.cast(tf.sqrt(k2), tf.complex64)
+
+        phi_complex = tf.cast(tf.complex(phi, tf.zeros_like(phi)), tf.complex64)
+
+        return -1j * (s2 * c1 * HR * tf.exp(-1j * phi_complex) + c2 * s1)
 
     def calculate_phi(self, a: float = None, b: float = None, z: list = [], z_squared: list = None):
         if z_squared is None:
             z_squared = tf.square(z)
         return a + b * z_squared
+
+
 
 
 # Press the green button in the gutter to run the script.

@@ -37,8 +37,9 @@ def RELU(beta, z=None):
     result = m * (z - beta)
 
     return tf.where(result < 0, tf.zeros_like(result), result)
-def Cliped_RELU(alpha, beta, z=None):
 
+
+def Cliped_RELU(alpha, beta, z=None):
     if z is None:
         z = tf.range(0, 1, 1 / 200)
     result = beta * z
@@ -48,6 +49,13 @@ def Cliped_RELU(alpha, beta, z=None):
 def rmse(y_true, y_pred):
     """
     Calculate the Root Mean Squared Error (RMSE) between the true and predicted values.
+
+    Parameters:
+        y_true (tensor-like): True target values.
+        y_pred (tensor-like): Predicted target values.
+
+    Returns:
+        float: Root Mean Squared Error (RMSE) between y_true and y_pred.
     """
     return tf.sqrt(tf.reduce_mean(tf.square(y_true - y_pred)))
 
@@ -79,43 +87,51 @@ def load_file(json_file, weights):
 
 if __name__ == '__main__':
     ### load model
-    loaded_model = load_file("OANN_model.json", "OANN_model.weights.h5")
+    loaded_model = load_file("../OANN_model.json", "OANN_model.weights.h5")
     z_squared = tf.range(0, 1, 1 / 200)
 
     ### predict
     use_calculation = True
     ## use calculation
     if use_calculation:
-        true_function = RELU(0, z_squared).numpy()  # Your new data as a NumPy array
-        # true_function = Cliped_ReLU(0.6, 0.85,  z_squared).numpy()
+        # true_function = ReLU(0.55, z_squared).numpy()  # Your new data as a NumPy array
+        true_function = Cliped_RELU(0.8, 0.85, z_squared).numpy()
     else:
         ## use data from data set
         import pandas as pd
-        true_function = pd.read_csv("RELU_MZI_training_data.csv", header=None, skiprows=431000, nrows=1).to_numpy()[0, 4:]
+
+        true_function = pd.read_csv("../training_data.csv", header=None, skiprows=56600, nrows=1).to_numpy()[0, 4:]
     true_function = np.expand_dims(true_function, axis=0)
     scaled_true_function = true_function
 
     ## StandardScalar, essential if used before training
-    from sklearn.preprocessing import StandardScaler
-    sc = StandardScaler()
-    scaled_true_function = sc.fit_transform(true_function.T).T
-    data_restored = sc.inverse_transform(scaled_true_function.T).T
+    scale = False
+    if scale:
+        from sklearn.preprocessing import StandardScaler
+
+        sc = StandardScaler()
+        scaled_true_function = sc.fit_transform(true_function.T).T
+        data_restored = sc.inverse_transform(scaled_true_function.T).T
 
     predictions = loaded_model.predict(scaled_true_function)[0, :]
+    # predictions = [0., 0., 0., 0.]
     print(predictions)
 
     ### predicted function
     oann = OANN(1.55)
-    H = abs(oann.transfer_function_MZI(k1=0.5, k2=predictions[0],
-                                       phi=oann.calculate_phi(predictions[1] * 2 * np.pi, predictions[2],
-                                                              z_squared=z_squared)))
+    H = abs(oann.transfer_function_MZI_ORR(HR=oann.transfer_function_ORR(k=predictions[0], gamma=0.8, neff=2.384556,
+                                                                         phi=oann.calculate_phi(
+                                                                             predictions[2] * 2 * np.pi, predictions[3],
+                                                                             z_squared=z_squared)
+                                                                         , L=5e-6 * 2 * np.pi),
+                                           k1=0.5, k2=0.5, phi=predictions[2] * 2 * np.pi))
     # H = abs(oann.transfer_function_MZI(k1=predictions[0], k2=predictions[1],
     #                                    phi=oann.calculate_phi(predictions[2] * 2 * np.pi, predictions[3],
     #                                                           z_squared=z_squared)))
-    predicted_function = H ** 2 * z_squared
+    predicted_func = H ** 2 * z_squared
 
     ### draw comparation curve
-    plot_prediction_curve(z_squared, true_function, predicted_function, "ReLU")
+    plot_prediction_curve(z_squared, true_function, predicted_func, "ReLU")
     print(predictions)
-    print("rmse = ", rmse(y_true=true_function, y_pred=predicted_function).numpy())
-    print("rmse in dB = %f dB" % (10 * np.log10(rmse(y_true=true_function, y_pred=predicted_function).numpy())))
+    print("rmse = ", rmse(y_true=true_function, y_pred=predicted_func).numpy())
+    print("rmse in dB = %f dB" % (10 * np.log10(rmse(y_true=true_function, y_pred=predicted_func).numpy())))
