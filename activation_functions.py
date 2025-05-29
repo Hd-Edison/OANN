@@ -25,6 +25,7 @@ class Activation_Functions():
     def function(self, z=None):
         return ValueError("this should be overridden")
 
+
 class ReLU(Activation_Functions):
 
     def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
@@ -49,6 +50,7 @@ class ReLU(Activation_Functions):
 class Cliped_ReLU(Activation_Functions):
     def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
@@ -63,14 +65,19 @@ class Cliped_ReLU(Activation_Functions):
 
 
 class ELu(Activation_Functions):
-    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
+    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 0., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+        self.m = 1 / (1 - self.beta)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
 
-        return tf.where(z > self.beta, self.alpha * (tf.exp(self.m * (z - self.beta) - 1) + self.c),
-                        self.m * (z - self.beta) + self.c)
+        result = tf.where(z > self.beta, self.m * (z - self.beta) + self.c, self.alpha * (tf.exp(self.m * (z - self.beta) - 1) + self.c))
+        min = tf.reduce_min(result)
+        scale = tf.reduce_max(result) - min
+
+        return (result - min) / scale
     # def __new__(cls, alpha, beta, m, c, z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
@@ -80,14 +87,17 @@ class ELu(Activation_Functions):
 
 
 class GeLu(Activation_Functions):
-    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
+    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 0., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
-
-        return 0.5 * self.alpha * (z - self.beta) * (
-                1 + tf.math.erf(self.alpha * (z - self.beta) / tf.sqrt(2)) + self.c) / self.scale
+        result = 0.5 * self.alpha * (z - self.beta) * (
+                1. + tf.math.erf(self.alpha * (z - self.beta) / tf.sqrt(2.)) + self.c) / self.scale
+        c = tf.reduce_min(result)
+        scale = tf.reduce_max(result) - c
+        return (result - c) / scale
     # def __new__(cls, alpha, beta, c, scale: float = 1., z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
@@ -97,13 +107,16 @@ class GeLu(Activation_Functions):
 
 
 class Parametric_ReLu(Activation_Functions):
-    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
+    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 0., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
-
-        return (tf.maximum(self.alpha * (z - self.beta), (z - self.beta)) + self.c) / self.scale
+        result = (tf.maximum(self.alpha * (z - self.beta), (z - self.beta)) + self.c) / self.scale
+        c = tf.reduce_min(result)
+        scale = tf.reduce_max(result) - c
+        return (result - c) / scale
     # def __new__(cls, alpha, beta, c, scale: float = 1., z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
@@ -112,14 +125,18 @@ class Parametric_ReLu(Activation_Functions):
 
 
 class SiLU(Activation_Functions):
-    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
+    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 0., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
+        result = (self.alpha * (z - self.beta) / (
+                1. + tf.exp(-self.alpha * (z - self.beta))) + self.c) / self.scale
 
-        return (self.alpha * (z - self.beta) / (
-                1 + tf.exp(-self.alpha * (z - self.beta))) + self.c) / self.scale
+        c = tf.reduce_min(result)
+        scale = tf.reduce_max(result) - c
+        return (result - c) / scale
     # def __new__(cls, alpha, beta, c, scale: float = 1., z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
@@ -131,11 +148,12 @@ class SiLU(Activation_Functions):
 class Gaussian(Activation_Functions):
     def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
 
-        return tf.exp(-tf.square(z - self.beta) / (2 * tf.square(self.alpha))) / self.scale
+        return tf.exp(-tf.cast(tf.square(z - self.beta), dtype=tf.float32) / (2. * tf.square(self.alpha))) / self.scale
     # def __new__(cls, alpha, beta, scale: float = 1., z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
@@ -146,6 +164,7 @@ class Gaussian(Activation_Functions):
 class Quadratic(Activation_Functions):
     def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
@@ -161,11 +180,12 @@ class Quadratic(Activation_Functions):
 class Sigmoid(Activation_Functions):
     def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
 
-        return self.scale / (1 + tf.exp(-self.alpha * (z - self.beta)))
+        return self.scale / (1. + tf.exp(-self.alpha * (z - self.beta)))
     # def __new__(cls, alpha, beta, scale: float = 1., z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
@@ -176,11 +196,12 @@ class Sigmoid(Activation_Functions):
 class Sine(Activation_Functions):
     def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
 
-        return (tf.sin(self.alpha * z + self.beta) + z) / 2
+        return (tf.sin(self.alpha * z + self.beta) + 1) / 2
     # def __new__(cls, alpha, beta, z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
@@ -191,11 +212,14 @@ class Sine(Activation_Functions):
 class Softplus(Activation_Functions):
     def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
         ### 文章中没说清楚是ln还是log10
-        return tf.math.log(1 + tf.exp(self.alpha * (z - self.beta))) / self.scale
+        result = tf.math.log(1. + tf.exp(self.alpha * (z - self.beta))) / self.scale
+        scale = tf.reduce_max(result)
+        return result / scale
     # def __new__(cls, alpha, beta, scale: float = 1., z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
@@ -204,13 +228,17 @@ class Softplus(Activation_Functions):
 
 
 class Tanh(Activation_Functions):
-    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
+    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 0., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
 
-        return (tf.math.tanh(self.alpha * (z - self.beta)) + self.c) * self.scale
+        result = (tf.math.tanh(self.alpha * (z - self.beta)) + self.c) * self.scale
+        c = tf.reduce_min(result)
+        scale = 1. / (tf.reduce_max(result) - c)
+        return (result - c) * scale
     # def __new__(cls, alpha, beta, c, scale: float = 1., z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
@@ -219,13 +247,16 @@ class Tanh(Activation_Functions):
 
 
 class Softsign(Activation_Functions):
-    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
+    def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 0., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
-
-        return (self.alpha * (z - self.beta) / (1 + tf.abs(self.alpha * (z - self.beta))) + self.c) / self.scale
+        result = (self.alpha * (z - self.beta) / (1. + tf.abs(self.alpha * (z - self.beta))) + self.c) / self.scale
+        c = tf.reduce_min(result)
+        scale = tf.reduce_max(result) - c
+        return (result - c) / scale
     # def __new__(cls, alpha, beta, c, scale: float = 1., z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
@@ -236,11 +267,12 @@ class Softsign(Activation_Functions):
 class Exponential(Activation_Functions):
     def __init__(self, alpha: float = 1., beta: float = 1., m: float = 1., c: float = 1., scale: float = 1.):
         super().__init__(alpha, beta, m, c, scale)
+
     def function(self, z=None):
         if z is None:
             z = tf.range(0, 1, 1 / 200)
 
-        return tf.exp(self.beta(z - 1))
+        return tf.exp(self.beta * (z - 1))
     # def __new__(cls, beta, z=None):
     #     if z is None:
     #         z = tf.range(0, 1, 1 / 200)
