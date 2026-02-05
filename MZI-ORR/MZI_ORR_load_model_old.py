@@ -94,7 +94,7 @@ if __name__ == '__main__':
     use_calculation = True
     ## use calculation
     if use_calculation:
-        # true_function = ReLU(0.15, z_squared).numpy()  # Your new data as a NumPy array
+        # taget_function = ReLU(0.15, z_squared).numpy()  # Your new data as a NumPy array
         true_function = Cliped_RELU(0.6, 0.65, z_squared).numpy()
     else:
         ## use data from data set
@@ -119,12 +119,13 @@ if __name__ == '__main__':
 
     ### predicted function
     oann = OANN(1.55)
-    H = abs(oann.transfer_function_MZI_ORR(HR=oann.transfer_function_ORR(k=predictions[0], gamma=0.8, neff=2.384556,
-                                                                         phi=oann.calculate_phi(
-                                                                             predictions[2] * 10 * 2 * np.pi, predictions[3] * 10,
-                                                                             z_squared=z_squared)
-                                                                         , L=5e-6 * 2 * np.pi),
-                                           k1=0.5, k2=0.5, phi=predictions[1] * 2 * np.pi))
+    H = abs(oann.transfer_function_MZI_2ORR(HR1=oann.transfer_function_ORR(k=predictions[0], gamma=0.8, neff=2.384556,
+                                                                           phi=oann.calculate_phi(
+                                                                               predictions[2] * 10 * 2 * np.pi,
+                                                                               predictions[3] * 10,
+                                                                               z_squared=z_squared)
+                                                                           , L=5e-6 * 2 * np.pi), k1=0.5, k2=0.5,
+                                            phi=predictions[1] * 2 * np.pi))
     # H = abs(oann.transfer_function_MZI(k1=predictions[0], k2=predictions[1],
     #                                    phi=oann.calculate_phi(predictions[2] * 2 * np.pi, predictions[3],
     #                                                           z_squared=z_squared)))

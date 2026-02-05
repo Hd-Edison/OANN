@@ -87,7 +87,7 @@ if __name__ == '__main__':
     ## use calculation
     if use_calculation:
         true_function = RELU(0, z_squared).numpy()  # Your new data as a NumPy array
-        # true_function = Cliped_ReLU(0.6, 0.85,  z_squared).numpy()
+        # taget_function = Cliped_ReLU(0.6, 0.85,  z_squared).numpy()
     else:
         ## use data from data set
         import pandas as pd

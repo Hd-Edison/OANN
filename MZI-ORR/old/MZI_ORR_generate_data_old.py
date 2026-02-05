@@ -29,9 +29,12 @@ for b in k1_values:
         for a in k_values:
             for phi in k_values:
                 result = abs(
-                    oann.transfer_function_MZI_ORR(HR=oann.transfer_function_ORR(k=kr, gamma=0.8, neff=2.384556,
-                                                                                 phi=oann.calculate_phi(a * 2 * np.pi, b, z_squared=z_squared), L=5e-6 * 2 * np.pi),
-                                                   k1=0.5, k2=0.5, phi=phi * 2 * np.pi)) ** 2 * z_squared
+                    oann.transfer_function_MZI_2ORR(HR1=oann.transfer_function_ORR(k=kr, gamma=0.8, neff=2.384556,
+                                                                                   phi=oann.calculate_phi(a * 2 * np.pi,
+                                                                                                          b,
+                                                                                                          z_squared=z_squared),
+                                                                                   L=5e-6 * 2 * np.pi), k1=0.5, k2=0.5,
+                                                    phi=phi * 2 * np.pi)) ** 2 * z_squared
                 parameters.append([kr._numpy(), phi._numpy(), a._numpy(), b._numpy()] + list(result._numpy()))
 
 # parameters = [np.float16(x) for x in parameters]
